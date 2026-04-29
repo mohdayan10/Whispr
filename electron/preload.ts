@@ -211,6 +211,7 @@ interface ElectronAPI {
 
   // Calendar
   calendarConnect: () => Promise<{ success: boolean; error?: string }>
+  calendarCancelConnect: () => Promise<{ success: boolean; cancelled: boolean }>
   calendarDisconnect: () => Promise<{ success: boolean; error?: string }>
   getCalendarStatus: () => Promise<{ connected: boolean; email?: string }>
   getUpcomingEvents: () => Promise<Array<{ id: string; title: string; startTime: string; endTime: string; link?: string; source: 'google' }>>
@@ -927,6 +928,7 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   // Calendar API
   calendarConnect: () => ipcRenderer.invoke('calendar-connect'),
+  calendarCancelConnect: () => ipcRenderer.invoke('calendar-cancel-connect'),
   calendarDisconnect: () => ipcRenderer.invoke('calendar-disconnect'),
   getCalendarStatus: () => ipcRenderer.invoke('get-calendar-status'),
   getUpcomingEvents: () => ipcRenderer.invoke('get-upcoming-events'),

@@ -10,6 +10,7 @@ interface ConnectCalendarButtonProps extends React.ButtonHTMLAttributes<HTMLButt
 const ConnectCalendarButton: React.FC<ConnectCalendarButtonProps> = ({ className = '', variant = 'default', ...props }) => {
     const [loading, setLoading] = useState(false);
     const [connected, setConnected] = useState(false);
+    const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
     useEffect(() => {
         if (window.electronAPI) {
@@ -26,19 +27,28 @@ const ConnectCalendarButton: React.FC<ConnectCalendarButtonProps> = ({ className
         if (props.onClick) props.onClick(e);
         if (connected) return; // For now no disconnect here
 
+        // Clicking while a connect attempt is in-flight cancels it so the user
+        // can immediately retry instead of waiting for the 3-min timeout.
+        if (loading) {
+            try { await window.electronAPI.calendarCancelConnect(); } catch {}
+            return;
+        }
+
+        setErrorMsg(null);
         setLoading(true);
         try {
             const res = await window.electronAPI.calendarConnect();
             if (res.success) {
                 setConnected(true);
                 props.onConnect?.();
-                // Track calendar connection
                 import('../../lib/analytics/analytics.service').then(({ analytics }) => {
                     analytics.trackCalendarConnected();
                 });
+            } else {
+                setErrorMsg(res.error || 'Authentication failed.');
             }
-        } catch (err) {
-            console.error(err);
+        } catch (err: any) {
+            setErrorMsg(err?.message || 'Authentication failed.');
         } finally {
             setLoading(false);
         }
@@ -134,9 +144,9 @@ const ConnectCalendarButton: React.FC<ConnectCalendarButtonProps> = ({ className
     }
 
     return (
+        <div className="flex flex-col items-center gap-2">
         <button
             onClick={handleClick}
-            disabled={loading}
             className={`
                 group relative
                 flex items-center gap-2.5
@@ -147,7 +157,7 @@ const ConnectCalendarButton: React.FC<ConnectCalendarButtonProps> = ({ className
                 hover:brightness-125
                 active:scale-[0.98]
                 overflow-hidden
-                ${loading ? 'opacity-80 cursor-wait' : ''}
+                ${loading ? 'opacity-80' : ''}
                 ${className}
             `}
             style={{
@@ -195,7 +205,7 @@ const ConnectCalendarButton: React.FC<ConnectCalendarButtonProps> = ({ className
                     </svg>
                 )}
 
-                {loading ? 'Connecting...' : 'Connect calendar'}
+                {loading ? 'Connecting… (click to cancel)' : 'Connect calendar'}
 
                 {!loading && (
                     <ArrowRight
@@ -206,6 +216,16 @@ const ConnectCalendarButton: React.FC<ConnectCalendarButtonProps> = ({ className
                 )}
             </span>
         </button>
+        {errorMsg && (
+            <motion.div
+                initial={{ opacity: 0, y: -2 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="max-w-[320px] text-center text-[11px] leading-snug px-3 py-1.5 rounded-md bg-red-500/10 text-red-200 border border-red-400/20"
+            >
+                {errorMsg}
+            </motion.div>
+        )}
+        </div>
     );
 };
 

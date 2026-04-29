@@ -2311,6 +2311,12 @@ export function initializeIpcHandlers(appState: AppState): void {
     return { success: true };
   });
 
+  safeHandle("calendar-cancel-connect", async () => {
+    const { CalendarManager } = require('./services/CalendarManager');
+    const cancelled = CalendarManager.getInstance().cancelAuthFlow();
+    return { success: true, cancelled };
+  });
+
   safeHandle("get-calendar-status", async () => {
     const { CalendarManager } = require('./services/CalendarManager');
     return CalendarManager.getInstance().getConnectionStatus();

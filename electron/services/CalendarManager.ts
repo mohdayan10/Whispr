@@ -1,4 +1,4 @@
-import { app, safeStorage, shell, net } from 'electron';
+import { app, safeStorage, shell, net, clipboard } from 'electron';
 import axios from 'axios';
 import http from 'http';
 import url from 'url';
@@ -34,6 +34,7 @@ export class CalendarManager extends EventEmitter {
     private expiryDate: number | null = null;
     private isConnected: boolean = false;
     private updateInterval: NodeJS.Timeout | null = null;
+    private pendingAuthCancel: ((reason: string) => void) | null = null;
 
     private constructor() {
         super();
@@ -56,48 +57,107 @@ export class CalendarManager extends EventEmitter {
     // =========================================================================
 
     public async startAuthFlow(): Promise<void> {
+        // If a previous flow is still pending, abort it so the loopback port
+        // is freed before we try to bind it again.
+        if (this.pendingAuthCancel) {
+            this.pendingAuthCancel('Superseded by new connect attempt');
+        }
+
+        const authUrl = this.getAuthUrl();
+        const TIMEOUT_MS = 3 * 60 * 1000;
+
         return new Promise((resolve, reject) => {
-            // 1. Create Loopback Server
+            let settled = false;
+            let timer: NodeJS.Timeout | null = null;
+
             const server = http.createServer(async (req, res) => {
                 try {
                     if (req.url?.startsWith('/auth/callback')) {
                         const qs = new url.URL(req.url, 'http://localhost:11111').searchParams;
                         const code = qs.get('code');
-                        const error = qs.get('error');
+                        const errParam = qs.get('error');
 
-                        if (error) {
+                        if (errParam) {
                             res.end('Authentication failed! You can close this window.');
-                            server.close();
-                            reject(new Error(error));
+                            fail(new Error(`Google returned: ${errParam}`));
                             return;
                         }
 
                         if (code) {
                             res.end('Authentication successful! You can close this window and return to Whispr.');
-                            server.close();
-
-                            // 2. Exchange code for tokens
-                            await this.exchangeCodeForToken(code);
-                            resolve();
+                            try {
+                                await this.exchangeCodeForToken(code);
+                                succeed();
+                            } catch (err: any) {
+                                fail(new Error(`Token exchange failed: ${err?.message || err}`));
+                            }
                         }
                     }
-                } catch (err) {
+                } catch (err: any) {
                     res.end('Authentication error.');
-                    server.close();
-                    reject(err);
+                    fail(err);
                 }
             });
 
-            server.listen(11111, () => {
-                // 3. Open Browser
-                const authUrl = this.getAuthUrl();
-                shell.openExternal(authUrl);
+            const cleanup = () => {
+                if (timer) { clearTimeout(timer); timer = null; }
+                // Drop lingering keep-alive sockets from the browser, otherwise
+                // the listener stays bound to port 11111 and a retry hits EADDRINUSE.
+                try { (server as any).closeAllConnections?.(); } catch {}
+                try { server.close(); } catch {}
+                if (this.pendingAuthCancel === cancelHandle) {
+                    this.pendingAuthCancel = null;
+                }
+            };
+            const succeed = () => {
+                if (settled) return;
+                settled = true;
+                cleanup();
+                resolve();
+            };
+            const fail = (err: Error) => {
+                if (settled) return;
+                settled = true;
+                cleanup();
+                reject(err);
+            };
+            const cancelHandle = (reason: string) => {
+                fail(new Error(reason));
+            };
+            this.pendingAuthCancel = cancelHandle;
+
+            server.on('error', (err: any) => {
+                if (err?.code === 'EADDRINUSE') {
+                    fail(new Error('Port 11111 is already in use. Close other Whispr instances and try again.'));
+                } else {
+                    fail(err);
+                }
             });
 
-            server.on('error', (err) => {
-                reject(err);
+            timer = setTimeout(() => {
+                fail(new Error('Authentication timed out. The auth URL was copied to your clipboard — paste it into a browser to retry.'));
+            }, TIMEOUT_MS);
+
+            // Copy URL to clipboard up-front so the user has a fallback if the
+            // browser fails to launch (common on WSL / headless Linux).
+            try { clipboard.writeText(authUrl); } catch {}
+
+            server.listen(11111, async () => {
+                try {
+                    await shell.openExternal(authUrl);
+                } catch (err: any) {
+                    fail(new Error(`Could not open browser: ${err?.message || err}. The auth URL was copied to your clipboard — paste it into a browser to continue.`));
+                }
             });
         });
+    }
+
+    public cancelAuthFlow(): boolean {
+        if (this.pendingAuthCancel) {
+            this.pendingAuthCancel('Cancelled by user');
+            return true;
+        }
+        return false;
     }
 
     public async disconnect(): Promise<void> {

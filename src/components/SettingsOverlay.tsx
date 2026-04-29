@@ -3352,6 +3352,10 @@ const SettingsOverlay: React.FC<SettingsOverlayProps> = ({ isOpen, onClose, init
 
                                                 <button
                                                     onClick={async () => {
+                                                        if (isCalendarsLoading) {
+                                                            try { await window.electronAPI.calendarCancelConnect(); } catch {}
+                                                            return;
+                                                        }
                                                         setIsCalendarsLoading(true);
                                                         try {
                                                             const res = await window.electronAPI.calendarConnect();
@@ -3365,7 +3369,6 @@ const SettingsOverlay: React.FC<SettingsOverlayProps> = ({ isOpen, onClose, init
                                                             setIsCalendarsLoading(false);
                                                         }
                                                     }}
-                                                    disabled={isCalendarsLoading}
                                                     className={`px-4 py-2 rounded-lg text-xs font-medium transition-all flex items-center gap-2.5 ${isLight ? 'bg-bg-component hover:bg-bg-item-surface text-text-primary border border-border-subtle' : 'bg-[#303033] hover:bg-[#3A3A3D] text-white'}`}
                                                 >
                                                     <svg viewBox="0 0 24 24" width="14" height="14" xmlns="http://www.w3.org/2000/svg">
@@ -3376,7 +3379,7 @@ const SettingsOverlay: React.FC<SettingsOverlayProps> = ({ isOpen, onClose, init
                                                             <path fill="#EA4335" d="M -14.754 43.989 C -12.984 43.989 -11.404 44.599 -10.154 45.789 L -6.734 42.369 C -8.804 40.429 -11.514 39.239 -14.754 39.239 C -19.444 39.239 -23.494 41.939 -25.464 45.859 L -21.484 48.949 C -20.534 46.099 -17.884 43.989 -14.754 43.989 Z" />
                                                         </g>
                                                     </svg>
-                                                    {isCalendarsLoading ? 'Connecting...' : 'Connect Google'}
+                                                    {isCalendarsLoading ? 'Connecting… (click to cancel)' : 'Connect Google'}
                                                 </button>
                                             </div>
                                         )}
