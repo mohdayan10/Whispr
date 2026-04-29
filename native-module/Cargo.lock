@@ -1063,29 +1063,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "whispr-audio"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "cidre",
- "cpal",
- "machine-uid",
- "napi",
- "napi-derive",
- "once_cell",
- "rand",
- "reqwest",
- "ringbuf",
- "rubato",
- "serde_json",
- "sha2",
- "tracing",
- "wasapi",
- "webrtc-vad",
- "windows 0.52.0",
-]
-
-[[package]]
 name = "ndk"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2258,6 +2235,29 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "39a1e40fd6ca90be95459152a2537f2ba4286ee1b13073f7ebcaa74fc94e3008"
 dependencies = [
  "cc",
+]
+
+[[package]]
+name = "whispr-audio"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cidre",
+ "cpal",
+ "machine-uid",
+ "napi",
+ "napi-derive",
+ "once_cell",
+ "rand",
+ "reqwest",
+ "ringbuf",
+ "rubato",
+ "serde_json",
+ "sha2",
+ "tracing",
+ "wasapi",
+ "webrtc-vad",
+ "windows 0.52.0",
 ]
 
 [[package]]
