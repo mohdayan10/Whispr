@@ -241,6 +241,19 @@ body,
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* Non-mac platforms have no vibrancy — paint a solid app background instead of
+   showing the BrowserWindow's black backing through a transparent body. */
+html:not([data-platform="darwin"]),
+html:not([data-platform="darwin"]) body,
+html:not([data-platform="darwin"]) #root {
+  background: #0b0b0f !important;
+}
+html:not([data-platform="darwin"])[data-theme="light"],
+html:not([data-platform="darwin"])[data-theme="light"] body,
+html:not([data-platform="darwin"])[data-theme="light"] #root {
+  background: #f5f5f7 !important;
+}
+
 /* Allow selection in specific areas if needed */
 .selectable {
   user-select: text;
