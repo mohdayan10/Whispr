@@ -32,10 +32,8 @@ export const WhisprQuotaBanner: React.FC = () => {
 
             try {
                 const result = await window.electronAPI?.getWhisprUsage?.();
-                console.log('[WhisprQuotaBanner] usage:', JSON.stringify(result));
 
                 if (cancelled || !result?.ok || !result.quota) {
-                    console.log('[WhisprQuotaBanner] no quota data — skipping');
                     return;
                 }
 
@@ -60,14 +58,12 @@ export const WhisprQuotaBanner: React.FC = () => {
                         pct:   Math.round((bucket.used / bucket.limit) * 100),
                     }));
 
-                console.log('[WhisprQuotaBanner] near-limit:', near);
-
                 if (near.length === 0) return;
 
                 setNearLimitBuckets(near);
                 setVisible(true);
-            } catch (e: any) {
-                console.log('[WhisprQuotaBanner] error:', e?.message);
+            } catch {
+                // ignore — non-critical
             }
         };
 
