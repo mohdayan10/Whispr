@@ -262,7 +262,6 @@ const WhisprInterface: React.FC<WhisprInterfaceProps> = ({ onEndMeeting, overlay
 
                 // Send exact dimensions to Electron
                 // Removed buffer to ensure tight fit
-                console.log('[WhisprInterface] ResizeObserver:', Math.ceil(rect.width), Math.ceil(rect.height));
                 window.electronAPI?.updateContentDimensions({
                     width: Math.ceil(rect.width),
                     height: Math.ceil(rect.height)
@@ -360,7 +359,6 @@ const WhisprInterface: React.FC<WhisprInterfaceProps> = ({ onEndMeeting, overlay
     useEffect(() => {
         if (!window.electronAPI?.onSessionReset) return;
         const unsubscribe = window.electronAPI.onSessionReset(() => {
-            console.log('[WhisprInterface] Resetting session state...');
             setMessages([]);
             setInputValue('');
             setAttachedContext([]);
