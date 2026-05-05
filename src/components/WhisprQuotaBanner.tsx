@@ -71,56 +71,57 @@ export const WhisprQuotaBanner: React.FC = () => {
         return () => { cancelled = true; };
     }, []);
 
-    if (!visible) return null;
-
     return (
         <AnimatePresence>
-            <motion.div
-                initial={{ opacity: 0, y: 20, scale: 0.96 }}
-                animate={{ opacity: 1, y: 0,  scale: 1    }}
-                exit={{    opacity: 0, y: 16,  scale: 0.96 }}
-                transition={{ duration: 0.25, ease: [0.2, 0, 0, 1] }}
-                className="fixed bottom-6 right-6 z-[9999] pointer-events-auto w-[320px]"
-            >
-                <div className="bg-[#1A1A1A] border border-amber-500/25 shadow-2xl rounded-2xl p-4 flex flex-col gap-3">
-                    {/* Header */}
-                    <div className="flex items-start justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                            <AlertTriangle size={14} className="text-amber-400 shrink-0 mt-[1px]" strokeWidth={2} />
-                            <span className="text-[13px] font-semibold text-[#E0E0E0]">Whispr quota almost full</span>
-                        </div>
-                        <button
-                            onClick={() => setVisible(false)}
-                            className="text-white/30 hover:text-white/70 transition-colors shrink-0 cursor-pointer"
-                        >
-                            <X size={14} strokeWidth={2} />
-                        </button>
-                    </div>
-
-                    {/* Bucket list */}
-                    <div className="flex flex-col gap-1.5">
-                        {nearLimitBuckets.map(({ label, used, limit, pct }) => (
-                            <div key={label} className="flex items-center justify-between">
-                                <span className="text-[12px] text-white/50">{label}</span>
-                                <span className={`text-[12px] font-medium tabular-nums ${pct >= 100 ? 'text-red-400' : 'text-amber-400'}`}>
-                                    {used.toLocaleString()} / {limit.toLocaleString()} ({pct}%)
-                                </span>
+            {visible && (
+                <motion.div
+                    initial={{ opacity: 0, y: 20, scale: 0.96 }}
+                    animate={{ opacity: 1, y: 0,  scale: 1    }}
+                    exit={{    opacity: 0, y: 16,  scale: 0.96 }}
+                    transition={{ duration: 0.25, ease: [0.2, 0, 0, 1] }}
+                    className="fixed bottom-6 right-6 z-[9999] pointer-events-auto w-[320px]"
+                >
+                    <div className="bg-[#1A1A1A] border border-amber-500/25 shadow-2xl rounded-2xl p-4 flex flex-col gap-3">
+                        {/* Header */}
+                        <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-2">
+                                <AlertTriangle size={14} className="text-amber-400 shrink-0 mt-[1px]" strokeWidth={2} />
+                                <span className="text-[13px] font-semibold text-[#E0E0E0]">Whispr quota almost full</span>
                             </div>
-                        ))}
-                    </div>
+                            <button
+                                onClick={() => setVisible(false)}
+                                aria-label="Dismiss quota banner"
+                                className="text-white/30 hover:text-white/70 transition-colors shrink-0 cursor-pointer"
+                            >
+                                <X size={14} strokeWidth={2} />
+                            </button>
+                        </div>
 
-                    {/* Footer */}
-                    <div className="flex items-center justify-between pt-0.5">
-                        <span className="text-[11px] text-white/30">Resets on your next billing date</span>
-                        <button
-                            onClick={() => (window.electronAPI as any)?.openExternal?.(UPGRADE_URL)}
-                            className="flex items-center gap-1 text-[11px] font-semibold text-amber-400 hover:text-amber-300 transition-colors cursor-pointer"
-                        >
-                            Upgrade <ArrowUpRight size={11} strokeWidth={2.5} />
-                        </button>
+                        {/* Bucket list */}
+                        <div className="flex flex-col gap-1.5">
+                            {nearLimitBuckets.map(({ label, used, limit, pct }) => (
+                                <div key={label} className="flex items-center justify-between">
+                                    <span className="text-[12px] text-white/50">{label}</span>
+                                    <span className={`text-[12px] font-medium tabular-nums ${pct >= 100 ? 'text-red-400' : 'text-amber-400'}`}>
+                                        {used.toLocaleString()} / {limit.toLocaleString()} ({pct}%)
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Footer */}
+                        <div className="flex items-center justify-between pt-0.5">
+                            <span className="text-[11px] text-white/30">Resets on your next billing date</span>
+                            <button
+                                onClick={() => (window.electronAPI as any)?.openExternal?.(UPGRADE_URL)}
+                                className="flex items-center gap-1 text-[11px] font-semibold text-amber-400 hover:text-amber-300 transition-colors cursor-pointer"
+                            >
+                                Upgrade <ArrowUpRight size={11} strokeWidth={2.5} />
+                            </button>
+                        </div>
                     </div>
-                </div>
-            </motion.div>
+                </motion.div>
+            )}
         </AnimatePresence>
     );
 };
