@@ -92,6 +92,10 @@ const Launcher: React.FC<LauncherProps> = ({ onStartMeeting, onOpenSettings, onP
     const [isGlobalChatOpen, setIsGlobalChatOpen] = useState(false);
     const [submittedGlobalQuery, setSubmittedGlobalQuery] = useState('');
 
+    const [forwardMeeting, setForwardMeeting] = useState<Meeting | null>(null);
+    const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
+    const [menuEntered, setMenuEntered] = useState(false);
+
     const fetchMeetings = () => {
         if (window.electronAPI && window.electronAPI.getRecentMeetings) {
             window.electronAPI.getRecentMeetings().then(setMeetings).catch(err => console.error("Failed to fetch meetings:", err));
@@ -217,6 +221,24 @@ const Launcher: React.FC<LauncherProps> = ({ onStartMeeting, onOpenSettings, onP
         };
     }, [isShortcutPressed]);
 
+    useEffect(() => {
+        setMenuEntered(false);
+    }, [activeMenuId]);
+
+    // Global click listener to close menu
+    useEffect(() => {
+        const handleClickOutside = () => setActiveMenuId(null);
+        window.addEventListener('click', handleClickOutside);
+        return () => window.removeEventListener('click', handleClickOutside);
+    }, []);
+
+    // Notify parent if we are on the main launcher list view
+    useEffect(() => {
+        if (onPageChange) {
+            onPageChange(!selectedMeeting && !isGlobalChatOpen);
+        }
+    }, [selectedMeeting, isGlobalChatOpen, onPageChange]);
+
     // Filter next meeting (within 60 mins)
     const nextMeeting = upcomingEvents.find(e => {
         const diff = new Date(e.startTime).getTime() - Date.now();
@@ -278,28 +300,6 @@ const Launcher: React.FC<LauncherProps> = ({ onStartMeeting, onOpenSettings, onP
         return new Date(b).getTime() - new Date(a).getTime();
     });
 
-
-    const [forwardMeeting, setForwardMeeting] = useState<Meeting | null>(null);
-    const [activeMenuId, setActiveMenuId] = useState<string | null>(null);
-    const [menuEntered, setMenuEntered] = useState(false);
-
-    useEffect(() => {
-        setMenuEntered(false);
-    }, [activeMenuId]);
-
-    // Global click listener to close menu
-    useEffect(() => {
-        const handleClickOutside = () => setActiveMenuId(null);
-        window.addEventListener('click', handleClickOutside);
-        return () => window.removeEventListener('click', handleClickOutside);
-    }, []);
-
-    // Notify parent if we are on the main launcher list view
-    useEffect(() => {
-        if (onPageChange) {
-            onPageChange(!selectedMeeting && !isGlobalChatOpen);
-        }
-    }, [selectedMeeting, isGlobalChatOpen, onPageChange]);
 
     const handleOpenMeeting = async (meeting: Meeting) => {
         setForwardMeeting(null); // Clear forward history on new navigation
