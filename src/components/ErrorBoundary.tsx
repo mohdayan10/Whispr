@@ -17,13 +17,15 @@ interface State {
     hasError: boolean;
     errorMessage: string;
     componentStack: string;
+    resetKey: number;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
     state: State = {
         hasError: false,
         errorMessage: '',
-        componentStack: ''
+        componentStack: '',
+        resetKey: 0
     };
 
     static getDerivedStateFromError(error: Error): Partial<State> {
@@ -52,8 +54,15 @@ export class ErrorBoundary extends Component<Props, State> {
     }
 
     private handleReload = (): void => {
-        // Attempt soft UI reset first (state reset)
-        this.setState({ hasError: false, errorMessage: '', componentStack: '' });
+        // Bump resetKey so the child subtree unmounts and remounts with fresh state.
+        // Without this, clearing hasError lets React re-render the same children
+        // whose stuck state caused the error, looping straight back to the fallback.
+        this.setState((prev) => ({
+            hasError: false,
+            errorMessage: '',
+            componentStack: '',
+            resetKey: prev.resetKey + 1
+        }));
     };
 
     private handleHardReload = (): void => {
@@ -62,7 +71,11 @@ export class ErrorBoundary extends Component<Props, State> {
 
     render(): ReactNode {
         if (!this.state.hasError) {
-            return this.props.children;
+            return (
+                <React.Fragment key={this.state.resetKey}>
+                    {this.props.children}
+                </React.Fragment>
+            );
         }
 
         const context = this.props.context ?? 'Application';
