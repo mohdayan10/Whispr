@@ -182,15 +182,36 @@ const Launcher: React.FC<LauncherProps> = ({ onStartMeeting, onOpenSettings, onP
             fetchMeetings();
         });
 
-        // Simple polling for events every minute
-        const interval = setInterval(fetchEvents, 60000);
+        // Poll for upcoming events every minute, but only while the launcher
+        // window is visible — avoids burning calendar API quota while hidden.
+        let interval: ReturnType<typeof setInterval> | null = null;
+        const startPolling = () => {
+            if (interval !== null) return;
+            interval = setInterval(fetchEvents, 60000);
+        };
+        const stopPolling = () => {
+            if (interval === null) return;
+            clearInterval(interval);
+            interval = null;
+        };
+        const handleVisibilityChange = () => {
+            if (document.visibilityState === 'visible') {
+                fetchEvents(); // catch up immediately on return
+                startPolling();
+            } else {
+                stopPolling();
+            }
+        };
+        if (document.visibilityState === 'visible') startPolling();
+        document.addEventListener('visibilitychange', handleVisibilityChange);
 
         return () => {
             mounted = false;
             if (removeMeetingsListener) removeMeetingsListener();
             if (removeUndetectableListener) removeUndetectableListener();
             if (removeMeetingStateListener) removeMeetingStateListener();
-            clearInterval(interval);
+            document.removeEventListener('visibilitychange', handleVisibilityChange);
+            stopPolling();
         };
     // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []); // Mount-only: stable setup that must run exactly once
