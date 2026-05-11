@@ -100,13 +100,6 @@ export const FeatureSpotlight: React.FC = () => {
         const newState = { ...interestState, [currentFeature.id]: !isInterested };
         setInterestState(newState);
         localStorage.setItem('whispr_feature_interest', JSON.stringify(newState));
-
-        // Interaction triggers "Anonymous one-time ping"
-        if (!isInterested) {
-            console.log(`[FeatureSpotlight] User registered interest in: ${currentFeature.id}`);
-        } else {
-            console.log(`[FeatureSpotlight] User removed interest in: ${currentFeature.id}`);
-        }
     };
 
     return (
