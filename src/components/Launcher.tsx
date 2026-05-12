@@ -309,16 +309,16 @@ const Launcher: React.FC<LauncherProps> = ({ onStartMeeting, onOpenSettings, onP
         return acc;
     }, {} as Record<string, Meeting[]>);
 
-    // Group order (Today, Yesterday, then others sorted new to old is implicit via API return order ideally, 
+    // Group order (Today, Yesterday, then others sorted new to old is implicit via API return order ideally,
     // but JS object key order isn't guaranteed. We can use a Map or just known keys.)
-    // Simple sort for keys:
+    // Sort the rest by a representative meeting date — label strings like
+    // "Mon, May 11" drop the year and don't round-trip through `new Date`.
     const sortedGroups = Object.keys(groupedMeetings).sort((a, b) => {
         if (a === 'Today') return -1;
         if (b === 'Today') return 1;
         if (a === 'Yesterday') return -1;
         if (b === 'Yesterday') return 1;
-        // Approximation for others: parse date
-        return new Date(b).getTime() - new Date(a).getTime();
+        return new Date(groupedMeetings[b][0].date).getTime() - new Date(groupedMeetings[a][0].date).getTime();
     });
 
 
