@@ -475,6 +475,7 @@ const Launcher: React.FC<LauncherProps> = ({ onStartMeeting, onOpenSettings, onP
                             transition={{ duration: 0.15 }}
                         >
                             <MeetingDetails
+                                key={selectedMeeting.id}
                                 meeting={selectedMeeting}
                                 onBack={handleBack}
                                 onOpenSettings={onOpenSettings}
