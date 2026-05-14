@@ -137,7 +137,6 @@ const Launcher: React.FC<LauncherProps> = ({ onStartMeeting, onOpenSettings, onP
 
     useEffect(() => {
         let mounted = true;
-        console.log("Launcher mounted");
         // Seed demo data if needed (safe to call always — runs ONCE on mount)
         if (window.electronAPI && window.electronAPI.seedDemo) {
             window.electronAPI.seedDemo().catch(err => console.error("Failed to seed demo:", err));
@@ -178,7 +177,6 @@ const Launcher: React.FC<LauncherProps> = ({ onStartMeeting, onOpenSettings, onP
 
         // Listen for background updates (e.g. after meeting processing finishes)
         const removeMeetingsListener = window.electronAPI.onMeetingsUpdated(() => {
-            console.log("Received meetings-updated event");
             fetchMeetings();
         });
 
@@ -324,17 +322,12 @@ const Launcher: React.FC<LauncherProps> = ({ onStartMeeting, onOpenSettings, onP
 
     const handleOpenMeeting = async (meeting: Meeting) => {
         setForwardMeeting(null); // Clear forward history on new navigation
-        console.log("[Launcher] Opening meeting:", meeting.id);
         analytics.trackCommandExecuted('open_meeting_details');
 
         // Fetch full meeting details including transcript and usage
         if (window.electronAPI && window.electronAPI.getMeetingDetails) {
             try {
-                console.log("[Launcher] Fetching full meeting details...");
                 const fullMeeting = await window.electronAPI.getMeetingDetails(meeting.id);
-                console.log("[Launcher] Got meeting details:", fullMeeting);
-                console.log("[Launcher] Transcript count:", fullMeeting?.transcript?.length);
-                console.log("[Launcher] Usage count:", fullMeeting?.usage?.length);
                 if (fullMeeting) {
                     setSelectedMeeting(fullMeeting);
                     return;
