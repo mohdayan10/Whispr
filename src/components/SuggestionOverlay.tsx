@@ -35,14 +35,12 @@ export const SuggestionOverlay: React.FC<SuggestionOverlayProps> = ({ className 
         cleanups.push(
             window.electronAPI.onNativeAudioConnected(() => {
                 setIsConnected(true);
-                console.log('[SuggestionOverlay] Native audio connected');
             })
         );
 
         cleanups.push(
             window.electronAPI.onNativeAudioDisconnected(() => {
                 setIsConnected(false);
-                console.log('[SuggestionOverlay] Native audio disconnected');
             })
         );
 
