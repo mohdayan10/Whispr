@@ -16,7 +16,6 @@ type WindowActivationOptions = {
 export class ModelSelectorWindowHelper {
     private window: BrowserWindow | null = null
     private contentProtection: boolean = false
-    private opacityTimeout: NodeJS.Timeout | null = null;
 
     // Store offsets relative to main window if needed, but absolute positioning is simpler for dropdowns
     private lastBlurTime: number = 0
@@ -77,23 +76,13 @@ export class ModelSelectorWindowHelper {
         this.window.setPosition(Math.round(x), Math.round(y))
         this.ensureVisibleOnScreen();
 
-        if (process.platform === 'win32' && this.contentProtection) {
-            this.window.setOpacity(0);
-            if (activate) this.window.show(); else this.window.showInactive();
-            this.window.setContentProtection(true);
-
-            if (this.opacityTimeout) clearTimeout(this.opacityTimeout);
-            this.opacityTimeout = setTimeout(() => {
-                if (this.window && !this.window.isDestroyed()) {
-                    this.window.setOpacity(1);
-                    if (activate) this.window.focus();
-                }
-            }, 60);
-        } else {
-            this.window.setContentProtection(this.contentProtection);
-            if (activate) this.window.show(); else this.window.showInactive();
-            if (activate) this.window.focus();
-        }
+        // Show at full opacity (the old "opacity shield" could strand the window invisible
+        // to the user). Apply content protection AFTER show() — on Windows the
+        // display-affinity flag only sticks on an already-shown window.
+        this.window.setOpacity(1);
+        if (activate) this.window.show(); else this.window.showInactive();
+        this.window.setContentProtection(this.contentProtection);
+        if (activate) this.window.focus();
     }
 
     public hideWindow(): void {

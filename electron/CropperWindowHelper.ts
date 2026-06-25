@@ -89,7 +89,6 @@ function getCombinedDisplayBounds(): Electron.Rectangle {
  */
 export class CropperWindowHelper {
     private cropperWindow: BrowserWindow | null = null
-    private opacityTimeout: NodeJS.Timeout | null = null;
     private selectionTimeout: NodeJS.Timeout | null = null;
     private resolvePromise: ((value: Electron.Rectangle | null) => void) | null = null;
     private isUndetectable: boolean = false;
@@ -344,41 +343,26 @@ export class CropperWindowHelper {
     }
 
     /**
-     * Windows-specific "Opacity Shield" sequence:
+     * Show the cropper window.
      *
-     * WHY: If setContentProtection(true) is applied before the window is fully "ready"
-     * and shown in the DWM, Windows may ignore the flag.
-     *
-     * HOW:
-     * 1. Set opacity to 0 (invisible to eye, but "active" for DWM)
-     * 2. Show window
-     * 3. Apply protection flag
-     * 4. Delay to let DWM process the flag
-     * 5. Set opacity to 1
+     * Content protection is already applied at window creation and persists on the HWND,
+     * so the window is hidden from screen capture before it is shown — we therefore show
+     * at full opacity directly. The previous "opacity shield" (show at 0, restore via a
+     * timer) could leave the window permanently invisible to the user if that timer was
+     * cleared or never fired. We re-assert protection here as a cheap guard against DWM
+     * dropping the flag.
      */
     private applyOpacityShield(): void {
         if (!this.cropperWindow || this.isDisposed) return;
 
-        if (process.platform === 'win32') {
-            this.cropperWindow.setOpacity(0);
-            this.cropperWindow.show();
-            this.cropperWindow.setContentProtection(this.isUndetectable);
-
-            // NOTE: Do NOT call maximize() - it limits to current monitor on Windows
-            // The window already has correct bounds from createWindow()
-
-            if (this.opacityTimeout) clearTimeout(this.opacityTimeout);
-            this.opacityTimeout = setTimeout(() => {
-                if (this.cropperWindow && !this.cropperWindow.isDestroyed() && !this.isDisposed) {
-                    this.cropperWindow.setOpacity(1);
-                    this.cropperWindow.focus();
-                }
-            }, CROPPER_CONFIG.OPACITY_DELAY_MS);
-        } else {
-            this.cropperWindow.setContentProtection(this.isUndetectable);
-            this.cropperWindow.show();
-            this.cropperWindow.focus();
-        }
+        this.cropperWindow.setOpacity(1);
+        // NOTE: Do NOT call maximize() - it limits to current monitor on Windows.
+        // The window already has correct bounds from createWindow().
+        this.cropperWindow.show();
+        // Apply content protection AFTER show() — on Windows the display-affinity flag
+        // only reliably sticks on an already-shown window.
+        this.cropperWindow.setContentProtection(this.isUndetectable);
+        this.cropperWindow.focus();
     }
 
     private createWindow(showImmediately: boolean): void {
@@ -425,6 +409,12 @@ export class CropperWindowHelper {
         }
 
         this.cropperWindow = new BrowserWindow(windowSettings)
+
+        // Apply content protection at creation, before the window is ever shown, so it is
+        // born hidden-from-capture (WDA persists on the HWND). This lets us show at full
+        // opacity directly instead of the fragile "opacity shield", which could strand the
+        // window invisible to the user if its restore timer never fired.
+        this.cropperWindow.setContentProtection(this.isUndetectable)
 
         // On Windows, ensure window spans all monitors by explicitly setting bounds
         // This is needed because BrowserWindow might auto-adjust to primary monitor
@@ -542,13 +532,6 @@ export class CropperWindowHelper {
 
         console.log('[CropperWindowHelper] Disposing...');
         this.isDisposed = true;
-
-        // Clear opacity timeout with safety check
-        if (this.opacityTimeout) {
-            clearTimeout(this.opacityTimeout);
-            this.opacityTimeout = null;
-            console.log('[CropperWindowHelper] Opacity timeout cleared');
-        }
 
         // Clear selection timeout with safety check
         if (this.selectionTimeout) {

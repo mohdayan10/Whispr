@@ -30,7 +30,6 @@ export class WindowHelper {
 
   private appState: AppState
   private contentProtection: boolean = false
-  private opacityTimeout: NodeJS.Timeout | null = null
 
   // Constants
   private static readonly OVERLAY_DEFAULT_WIDTH = 600;
@@ -68,6 +67,19 @@ export class WindowHelper {
         win.setContentProtection(enable);
       }
     });
+    // On Windows, SetWindowDisplayAffinity only reliably sticks when applied to a
+    // freshly-shown window — a bare setContentProtection() on an already-visible window
+    // (e.g. when the user toggles undetectable at runtime) is a no-op and the window
+    // keeps leaking into screen-share. Re-show the currently-visible window through the
+    // normal path (which re-applies protection right after show()), using showInactive
+    // so the toggle does not steal focus from the meeting app.
+    if (process.platform === 'win32' && this.isWindowVisible) {
+      if (this.currentWindowMode === 'overlay') {
+        this.switchToOverlay(true);
+      } else {
+        this.switchToLauncher(true);
+      }
+    }
   }
 
   public setWindowDimensions(width: number, height: number): void {
@@ -249,8 +261,13 @@ export class WindowHelper {
       },
       show: false,
       frame: false, // Frameless
-      transparent: true,
-      backgroundColor: "#00000000",
+      // Windows: setContentProtection (WDA_EXCLUDEFROMCAPTURE) silently fails on a
+      // transparent (per-pixel-alpha / WS_EX_NOREDIRECTIONBITMAP) window, so the overlay
+      // would leak into screen-share/recording even with undetectable on. Keep the window
+      // opaque on Windows so content protection actually applies; transparency stays on
+      // macOS where content protection works regardless.
+      transparent: isMac,
+      backgroundColor: isMac ? "#00000000" : "#000000",
       alwaysOnTop: true,
       focusable: true,
       resizable: false, // Enforce automatic resizing only
@@ -565,40 +582,27 @@ export class WindowHelper {
       this.overlayWindow.setBounds(targetBounds);
       this.overlayBounds = this.overlayWindow.getBounds();
 
-      // Restore opacity before showing (it may have been zeroed by hideMainWindow).
-      if (process.platform === 'win32' && this.contentProtection) {
-        // Opacity Shield: Show at 0 opacity first to prevent frame leak
-        this.overlayWindow.setOpacity(0);
-        if (inactive) this.overlayWindow.showInactive(); else this.overlayWindow.show();
-        this.overlayWindow.setContentProtection(true);
-        // Small delay to ensure Windows DWM processes the flag before making it opaque
-
-        if (this.opacityTimeout) clearTimeout(this.opacityTimeout);
-        this.opacityTimeout = setTimeout(() => {
-          if (this.overlayWindow && !this.overlayWindow.isDestroyed()) {
-            this.overlayWindow.setOpacity(1);
-            // Re-assert z-order on Windows — DWM can silently demote the HWND after hide/show
-            this.overlayWindow.setAlwaysOnTop(true, 'floating');
-            if (!inactive) this.overlayWindow.focus();
-          }
-        }, 60);
-      } else {
-        // Restore opacity (may have been zeroed pre-screenshot by hideMainWindow)
-        this.overlayWindow.setOpacity(1);
-        this.overlayWindow.setContentProtection(this.contentProtection);
-        // Re-assert z-order BEFORE show on Windows — DWM processes setAlwaysOnTop
-        // synchronously, so calling it before show() ensures the window lands at the
-        // correct z-level on first paint. Calling it after focus() would leave a brief
-        // window where the HWND is focused at the wrong z-level (issue #136).
-        // Skipped on macOS — calling setAlwaysOnTop triggers [NSApp activate] which
-        // steals focus from Zoom/browser even when showInactive() was used.
-        if (process.platform === 'win32') {
-          this.overlayWindow.setAlwaysOnTop(true, 'floating');
-        }
-        if (inactive) this.overlayWindow.showInactive(); else this.overlayWindow.show();
-        // Only grab focus for explicit user-initiated shows (not shortcut/ghost shows)
-        if (!inactive) this.overlayWindow.focus();
+      // Show at full opacity directly. The old "opacity shield" (show at opacity 0, then
+      // restore via a 60ms timer) could strand the window invisible to the user if that
+      // timer was cleared or never fired.
+      this.overlayWindow.setOpacity(1);
+      // Re-assert z-order BEFORE show on Windows — DWM processes setAlwaysOnTop
+      // synchronously, so calling it before show() ensures the window lands at the
+      // correct z-level on first paint (issue #136).
+      // Skipped on macOS — calling setAlwaysOnTop triggers [NSApp activate] which
+      // steals focus from Zoom/browser even when showInactive() was used.
+      if (process.platform === 'win32') {
+        this.overlayWindow.setAlwaysOnTop(true, 'floating');
       }
+      if (inactive) this.overlayWindow.showInactive(); else this.overlayWindow.show();
+      // CRITICAL: apply content protection AFTER show(). On Windows,
+      // SetWindowDisplayAffinity(WDA_EXCLUDEFROMCAPTURE) only reliably sticks on a window
+      // that is already shown/realized — applying it before show() leaves the window
+      // captured, so it leaks into screen-share/recording. Re-applying on every show also
+      // recovers protection after any runtime toggle or screenshot flow dropped it.
+      this.overlayWindow.setContentProtection(this.contentProtection);
+      // Only grab focus for explicit user-initiated shows (not shortcut/ghost shows)
+      if (!inactive) this.overlayWindow.focus();
       this.isWindowVisible = true;
     }
 
@@ -615,26 +619,14 @@ export class WindowHelper {
 
     // Show Launcher FIRST
     if (this.launcherWindow && !this.launcherWindow.isDestroyed()) {
-      if (process.platform === 'win32' && this.contentProtection) {
-        // Opacity Shield: Show at 0 opacity first
-        this.launcherWindow.setOpacity(0);
-        if (inactive) this.launcherWindow.showInactive(); else this.launcherWindow.show();
-        this.launcherWindow.setContentProtection(true);
-
-        if (this.opacityTimeout) clearTimeout(this.opacityTimeout);
-        this.opacityTimeout = setTimeout(() => {
-          if (this.launcherWindow && !this.launcherWindow.isDestroyed()) {
-            this.launcherWindow.setOpacity(1);
-            if (!inactive) this.launcherWindow.focus();
-          }
-        }, 60);
-      } else {
-        // Restore opacity (may have been zeroed pre-screenshot by hideMainWindow)
-        this.launcherWindow.setOpacity(1);
-        this.launcherWindow.setContentProtection(this.contentProtection);
-        if (inactive) this.launcherWindow.showInactive(); else this.launcherWindow.show();
-        if (!inactive) this.launcherWindow.focus();
-      }
+      // Always show at full opacity — see switchToOverlay() for why the old
+      // "opacity shield" was removed (it could strand the window invisible to the user).
+      this.launcherWindow.setOpacity(1);
+      if (inactive) this.launcherWindow.showInactive(); else this.launcherWindow.show();
+      // CRITICAL: apply content protection AFTER show() — on Windows the display-affinity
+      // flag only sticks on an already-shown window. See switchToOverlay() for details.
+      this.launcherWindow.setContentProtection(this.contentProtection);
+      if (!inactive) this.launcherWindow.focus();
       this.isWindowVisible = true;
     }
 
@@ -688,7 +680,6 @@ export class WindowHelper {
   public minimizeWindow(): void {
     const win = this.launcherWindow;
     if (!win || win.isDestroyed()) return;
-    if (this.opacityTimeout) clearTimeout(this.opacityTimeout);
     win.minimize();
   }
 
@@ -705,7 +696,6 @@ export class WindowHelper {
   public closeWindow(): void {
     const win = this.launcherWindow;
     if (!win || win.isDestroyed()) return;
-    if (this.opacityTimeout) clearTimeout(this.opacityTimeout);
     // On Windows/Linux the 'close' event listener intercepts this
     // and hides to tray unless the app is actually quitting.
     win.close();

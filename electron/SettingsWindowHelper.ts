@@ -15,7 +15,6 @@ type WindowActivationOptions = {
 export class SettingsWindowHelper {
     private settingsWindow: BrowserWindow | null = null
     private windowHelper: WindowHelper | null = null;
-    private opacityTimeout: NodeJS.Timeout | null = null;
 
     public getSettingsWindow(): BrowserWindow | null {
         return this.settingsWindow
@@ -103,23 +102,13 @@ export class SettingsWindowHelper {
         // Ensure fully visible on screen
         this.ensureVisibleOnScreen();
 
-        if (process.platform === 'win32' && this.contentProtection) {
-            this.settingsWindow.setOpacity(0);
-            if (activate) this.settingsWindow.show(); else this.settingsWindow.showInactive();
-            this.settingsWindow.setContentProtection(true);
-
-            if (this.opacityTimeout) clearTimeout(this.opacityTimeout);
-            this.opacityTimeout = setTimeout(() => {
-                if (this.settingsWindow && !this.settingsWindow.isDestroyed()) {
-                    this.settingsWindow.setOpacity(1);
-                    if (activate) this.settingsWindow.focus();
-                }
-            }, 60);
-        } else {
-            this.settingsWindow.setContentProtection(this.contentProtection);
-            if (activate) this.settingsWindow.show(); else this.settingsWindow.showInactive();
-            if (activate) this.settingsWindow.focus();
-        }
+        // Show at full opacity (the old "opacity shield" could strand the window invisible
+        // to the user). Apply content protection AFTER show() — on Windows the
+        // display-affinity flag only sticks on an already-shown window.
+        this.settingsWindow.setOpacity(1);
+        if (activate) this.settingsWindow.show(); else this.settingsWindow.showInactive();
+        this.settingsWindow.setContentProtection(this.contentProtection);
+        if (activate) this.settingsWindow.focus();
 
         this.emitVisibilityChange(true);
     }

@@ -207,3 +207,6 @@ planning/live-negotiation/temp/
 
 # IDE
 /.idea/
+
+# Local build tooling (node distro + electron sysroot) — too large for git
+.tools/
