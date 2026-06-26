@@ -256,6 +256,8 @@ interface ElectronAPI {
   profileSetMode: (enabled: boolean) => Promise<{ success: boolean; error?: string }>;
   profileDelete: () => Promise<{ success: boolean; error?: string }>;
   profileGetProfile: () => Promise<any>;
+  profileGetBasic: () => Promise<{ enabled: boolean; profile: any }>;
+  profileSaveBasic: (payload: { profile: any; enabled: boolean }) => Promise<{ success: boolean; error?: string }>;
   profileSelectFile: () => Promise<{ success?: boolean; cancelled?: boolean; filePath?: string; error?: string }>;
 
   // JD & Research API
@@ -1056,6 +1058,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   profileSetMode: (enabled: boolean) => ipcRenderer.invoke('profile:set-mode', enabled),
   profileDelete: () => ipcRenderer.invoke('profile:delete'),
   profileGetProfile: () => ipcRenderer.invoke('profile:get-profile'),
+  profileGetBasic: () => ipcRenderer.invoke('profile:get-basic'),
+  profileSaveBasic: (payload: { profile: any; enabled: boolean }) => ipcRenderer.invoke('profile:save-basic', payload),
   profileSelectFile: () => ipcRenderer.invoke('profile:select-file'),
 
   // JD & Research API

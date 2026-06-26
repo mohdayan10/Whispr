@@ -12,7 +12,7 @@ import { analytics } from '../lib/analytics/analytics.service';
 import { AboutSection } from './AboutSection';
 import { HelpSettings } from './settings/HelpSettings';
 import { AIProvidersSettings } from './settings/AIProvidersSettings';
-import { WhisprApiSettings } from './settings/WhisprApiSettings';
+import { BasicProfileSettings } from './settings/BasicProfileSettings';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useShortcuts } from '../hooks/useShortcuts';
 import { useResolvedTheme } from '../hooks/useResolvedTheme';
@@ -1305,13 +1305,6 @@ const SettingsOverlay: React.FC<SettingsOverlayProps> = ({ isOpen, onClose, init
                                         <Monitor size={16} /> General
                                     </button>
                                     <button
-                                        onClick={() => setActiveTab('whispr-api')}
-                                        className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-3 ${activeTab === 'whispr-api' ? 'bg-bg-item-active text-text-primary' : 'text-text-secondary hover:text-text-primary hover:bg-bg-item-active/50'}`}
-                                    >
-                                        <Zap size={16} className={activeTab === 'whispr-api' ? 'text-blue-500' : 'text-blue-500/70'} />
-                                        <span>Whispr API</span>
-                                    </button>
-                                    <button
                                         onClick={() => {
                                             setActiveTab('profile');
                                             // Load profile status when switching to this tab
@@ -1843,6 +1836,8 @@ const SettingsOverlay: React.FC<SettingsOverlayProps> = ({ isOpen, onClose, init
                             )}
                             {activeTab === 'profile' && (
                                 <div className="space-y-6 animated fadeIn">
+                                    {/* Open-source profile intelligence (works without premium) */}
+                                    <BasicProfileSettings />
                                     {/* Introduction */}
                                     <div className="mb-5">
                                         <div className="flex items-center justify-between mb-1">
@@ -2711,9 +2706,6 @@ const SettingsOverlay: React.FC<SettingsOverlayProps> = ({ isOpen, onClose, init
                             )}
                             {activeTab === 'ai-providers' && (
                                 <AIProvidersSettings />
-                            )}
-                            {activeTab === 'whispr-api' && (
-                                <WhisprApiSettings />
                             )}
                             {activeTab === 'keybinds' && (
                                 <div className="space-y-5 animated fadeIn select-text pb-4">
