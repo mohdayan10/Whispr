@@ -22,10 +22,10 @@ interface FeatureSlide {
 const FEATURES: FeatureSlide[] = [
     {
         id: 'tailored_answers',
-        headline: 'Upcoming features',
-        subtitle: 'Answers, tailored to you',
-        bullets: ['Repo aware explanations', 'System design interview specialization'],
-        footer: 'Designed to work silently during live interviews.',
+        headline: 'Your real-time meeting copilot',
+        subtitle: 'Stay sharp, organized, and present',
+        bullets: ['Live transcription with instant recall', 'Smart summaries and clear follow-ups', 'On-device & private — nothing leaves your machine'],
+        footer: 'Focus on the conversation — let Whispr handle the notes.',
         type: 'premium',
     }
 ];

@@ -2601,18 +2601,21 @@ export function initializeIpcHandlers(appState: AppState): void {
 
   safeHandle("profile:upload-resume", async (_, filePath: string) => {
     try {
-      // Premium gate: require active license or free trial for profile features
-      if (!isProOrTrialActive()) {
-        return { success: false, error: 'Pro license required. Please activate a license key to use Profile Intelligence features.' };
-      }
       console.log(`[IPC] profile:upload-resume called with: ${filePath}`);
       const orchestrator = appState.getKnowledgeOrchestrator();
-      if (!orchestrator) {
-        return { success: false, error: 'Knowledge engine not initialized. Please ensure API keys are configured.' };
+      // Premium path: full knowledge-engine ingestion when available + licensed.
+      if (orchestrator && isProOrTrialActive()) {
+        const { DocType } = require('../premium/electron/knowledge/types');
+        return await orchestrator.ingestDocument(filePath, DocType.RESUME);
       }
-      const { DocType } = require('../premium/electron/knowledge/types');
-      const result = await orchestrator.ingestDocument(filePath, DocType.RESUME);
-      return result;
+      // Open-source fallback: extract text and store it in the basic profile.
+      const { ProfileManager } = require('./services/ProfileManager');
+      const text = await ProfileManager.extractTextFromFile(filePath);
+      if (!text || !text.trim()) {
+        return { success: false, error: 'Could not read any text from that file. Try a PDF, DOCX, or TXT.' };
+      }
+      ProfileManager.getInstance().setResumeText(text);
+      return { success: true };
     } catch (error: any) {
       console.error('[IPC] profile:upload-resume error:', error);
       return { success: false, error: error.message };
@@ -2623,7 +2626,11 @@ export function initializeIpcHandlers(appState: AppState): void {
     try {
       const orchestrator = appState.getKnowledgeOrchestrator();
       if (!orchestrator) {
-        return { hasProfile: false, profileMode: false };
+        // Open-source fallback: reflect the basic profile so the card shows its state.
+        const { ProfileManager } = require('./services/ProfileManager');
+        const pm = ProfileManager.getInstance();
+        const prof = pm.getProfile();
+        return { hasProfile: pm.hasContent(), profileMode: pm.isEnabled(), name: prof.name, role: prof.role };
       }
       // Map new KnowledgeStatus back to legacy UI shape temporarily
       const status = orchestrator.getStatus();
@@ -2684,6 +2691,31 @@ export function initializeIpcHandlers(appState: AppState): void {
     }
   });
 
+  // ── Basic (open-source) profile intelligence ────────────────────────────
+  // Lightweight profile used when the premium KnowledgeOrchestrator is absent.
+  // Not gated — this is the free fallback that tailors AI answers to the user.
+  safeHandle("profile:get-basic", async () => {
+    try {
+      const { ProfileManager } = require('./services/ProfileManager');
+      const pm = ProfileManager.getInstance();
+      return { enabled: pm.isEnabled(), profile: pm.getProfile() };
+    } catch (error: any) {
+      console.error('[IPC] profile:get-basic error:', error);
+      return { enabled: false, profile: {} };
+    }
+  });
+
+  safeHandle("profile:save-basic", async (_, payload: { profile: any; enabled: boolean }) => {
+    try {
+      const { ProfileManager } = require('./services/ProfileManager');
+      ProfileManager.getInstance().saveProfile(payload?.profile || {}, !!payload?.enabled);
+      return { success: true };
+    } catch (error: any) {
+      console.error('[IPC] profile:save-basic error:', error);
+      return { success: false, error: error.message };
+    }
+  });
+
   safeHandle("profile:select-file", async () => {
     try {
       const result: any = await dialog.showOpenDialog({
@@ -2709,18 +2741,21 @@ export function initializeIpcHandlers(appState: AppState): void {
 
   safeHandle("profile:upload-jd", async (_, filePath: string) => {
     try {
-      // Premium gate
-      if (!isProOrTrialActive()) {
-        return { success: false, error: 'Pro license required. Please activate a license key to use Profile Intelligence features.' };
-      }
       console.log(`[IPC] profile:upload-jd called with: ${filePath}`);
       const orchestrator = appState.getKnowledgeOrchestrator();
-      if (!orchestrator) {
-        return { success: false, error: 'Knowledge engine not initialized. Please ensure API keys are configured.' };
+      // Premium path: full knowledge-engine ingestion when available + licensed.
+      if (orchestrator && isProOrTrialActive()) {
+        const { DocType } = require('../premium/electron/knowledge/types');
+        return await orchestrator.ingestDocument(filePath, DocType.JD);
       }
-      const { DocType } = require('../premium/electron/knowledge/types');
-      const result = await orchestrator.ingestDocument(filePath, DocType.JD);
-      return result;
+      // Open-source fallback: extract text and store it as the target job description.
+      const { ProfileManager } = require('./services/ProfileManager');
+      const text = await ProfileManager.extractTextFromFile(filePath);
+      if (!text || !text.trim()) {
+        return { success: false, error: 'Could not read any text from that file. Try a PDF, DOCX, or TXT.' };
+      }
+      ProfileManager.getInstance().setJobDescriptionText(text);
+      return { success: true };
     } catch (error: any) {
       console.error('[IPC] profile:upload-jd error:', error);
       return { success: false, error: error.message };

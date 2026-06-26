@@ -1,5 +1,4 @@
-import { ChevronUp, ChevronDown, PointerOff } from "lucide-react";
-import icon from "../icon.png";
+import { ChevronUp, ChevronDown, PointerOff, GripVertical } from "lucide-react";
 import type { OverlayAppearance } from "../../lib/overlayAppearance";
 
 interface TopPillProps {
@@ -45,14 +44,20 @@ export default function TopPill({
           `}
                     style={appearance.iconStyle}
                 >
-                    <img
-                        src={icon}
-                        alt="Whispr"
-                        className="w-[24px] h-[24px] object-contain opacity-95 scale-105 force-black-icon"
-                        draggable="false"
-                        onDragStart={(e) => e.preventDefault()}
-                    />
+                    <span className="text-[16px] font-extrabold leading-none force-black-icon select-none">W</span>
                 </button>
+
+                {/* DRAG HANDLE — explicit grabbable surface. The pill has
+                    -webkit-app-region: drag, but every <button> is forced to
+                    no-drag globally, so without a non-button handle there is
+                    almost no surface to grab. Keep this a plain div. */}
+                <div
+                    className="drag-region self-stretch flex items-center px-1 opacity-40 hover:opacity-80 transition-opacity"
+                    style={{ cursor: "move" }}
+                    title="Drag to move"
+                >
+                    <GripVertical className="w-4 h-4" />
+                </div>
 
                 {/* CENTER SEGMENT */}
                 <button

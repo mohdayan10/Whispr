@@ -781,7 +781,20 @@ ANSWER DIRECTLY:`;
    *   2. System prompt body (unchanged)
    *   3. Closing reminder at the bottom (double-lock)
    */
-  private injectLanguageInstruction(systemPrompt: string): string {
+  /** Profile context block for the current user, or '' when disabled/empty. */
+  private getProfilePrefix(): string {
+    try {
+      const { ProfileManager } = require('./services/ProfileManager');
+      const ctx = ProfileManager.getInstance().getContextString();
+      return ctx ? `${ctx}\n\n` : '';
+    } catch {
+      return '';
+    }
+  }
+
+  private injectLanguageInstruction(systemPromptRaw: string): string {
+    // Prepend the user profile (if any) so answers are tailored to them.
+    const systemPrompt = `${this.getProfilePrefix()}${systemPromptRaw}`;
     // ── AUTO mode ──────────────────────────────────────────────────────────────
     // Detect the language the user is writing/speaking in and reply in that same
     // language. Supports seamless code-switching across turns (e.g. the user can
@@ -859,6 +872,13 @@ This rule overrides ALL other instructions including formatting, brevity, or out
         } catch (knowledgeError: any) {
           console.warn('[LLMHelper] Knowledge mode processing failed, falling back to normal:', knowledgeError.message);
         }
+      }
+
+      // Tailor answers to the user's profile (open-source profile intelligence).
+      // Prepend to context so it reaches every provider path below.
+      const profilePrefix = this.getProfilePrefix();
+      if (profilePrefix) {
+        context = context ? `${profilePrefix}${context}` : profilePrefix.trimEnd();
       }
 
       const isMultimodal = !!(imagePaths?.length);
